@@ -77,8 +77,8 @@
         }
         
         .uplb-route { stroke: #4a9eff; }
-        .swi-route { stroke: #ff6b6b; }
-        .hw-route { stroke: #51cf66; }
+        .swi-route { stroke: #51cf66; }
+        .hw-route { stroke: #a78bfa; }
         .inter-route { stroke: #ffd43b; }
         
         .station-group {
@@ -150,6 +150,11 @@
             margin-right: 10px;
             border-radius: 2px;
         }
+        
+        .legend-line.uplb-route { background: #4a9eff; }
+        .legend-line.swi-route { background: #51cf66; }
+        .legend-line.hw-route { background: #a78bfa; }
+        .legend-line.inter-route { background: #ffd43b; }
         
         .route-planner {
             flex: 1;
@@ -466,7 +471,7 @@
             circle.setAttribute('fill', '#0a0a1a');
             circle.setAttribute('stroke', 
                 data.faction === 'UPLB' ? '#4a9eff' : 
-                data.faction === 'SWI' ? '#ff6b6b' : '#51cf66');
+                data.faction === 'SWI' ? '#51cf66' : '#a78bfa');
             circle.setAttribute('stroke-width', 3);
             
             routeCircles[name] = circle;
@@ -506,8 +511,62 @@
                 return;
             }
             
-            plannedRoute.push(stationName);
+            // If this is the first station or directly connected, just add it
+            if (plannedRoute.length === 0) {
+                plannedRoute.push(stationName);
+            } else {
+                const lastStation = plannedRoute[plannedRoute.length - 1];
+                const directRoute = findRoute(lastStation, stationName);
+                
+                if (directRoute) {
+                    // Direct connection exists
+                    plannedRoute.push(stationName);
+                } else {
+                    // No direct connection - find a path
+                    const path = findPath(lastStation, stationName);
+                    if (path && path.length > 0) {
+                        // Add all intermediate stations
+                        path.forEach(station => {
+                            if (station !== lastStation) {
+                                plannedRoute.push(station);
+                            }
+                        });
+                    } else {
+                        // No path found, add anyway (will show as no route)
+                        plannedRoute.push(stationName);
+                    }
+                }
+            }
+            
             updateRouteDisplay();
+        }
+        
+        function findPath(start, end) {
+            // BFS to find shortest path
+            const queue = [[start]];
+            const visited = new Set([start]);
+            
+            while (queue.length > 0) {
+                const path = queue.shift();
+                const current = path[path.length - 1];
+                
+                if (current === end) {
+                    return path;
+                }
+                
+                // Find all neighbors
+                const neighbors = routes
+                    .filter(r => r.from === current || r.to === current)
+                    .map(r => r.from === current ? r.to : r.from)
+                    .filter(n => !visited.has(n));
+                
+                for (const neighbor of neighbors) {
+                    visited.add(neighbor);
+                    queue.push([...path, neighbor]);
+                }
+            }
+            
+            return null; // No path found
         }
         
         function clearRoute() {
